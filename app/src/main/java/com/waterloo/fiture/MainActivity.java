@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private Mat mat;
     private  static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL = 0;
     private ImageView mMainImage;
-    private Button mBtnDetect;
+    private Button mBtnRed, mBtnBlue, mBtnGreen;
     private Bitmap mCurrBitmap;
 
     static {
@@ -76,7 +76,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mMainImage = (ImageView) findViewById(R.id.image_view);
-        mBtnDetect = (Button)findViewById(R.id.btn_detect);
+        mBtnBlue = (Button)findViewById(R.id.btn_blue);
+        mBtnRed = (Button)findViewById(R.id.btn_red);
+        mBtnGreen = (Button)findViewById(R.id.btn_green);
 
         if (ContextCompat.checkSelfPermission(MainActivity.this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -101,136 +103,140 @@ public class MainActivity extends AppCompatActivity {
             }
         } else {
 
-            String root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString();
-            File file = new File(root, "sang");
-            Random generator = new Random();
-            int n = 10000;
-            n = generator.nextInt(n);
-            mCurrBitmap = getBitmapFromAsset(getApplicationContext(), "oval.jpg");
+//            String root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString();
+//            File file = new File(root, "sang");
+//            Random generator = new Random();
+//            int n = 10000;
+//            n = generator.nextInt(n);
+            mCurrBitmap = getBitmapFromAsset(getApplicationContext(), "RGB-color.jpg");
 
             Glide.with(this).asBitmap().load(bitmapToByte(mCurrBitmap))
                     .into(mMainImage);
 
 
-            mBtnDetect.setOnClickListener(new View.OnClickListener() {
+            mBtnBlue.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    Bitmap bmp = mCurrBitmap;
-                    Mat src = new Mat ();
+                    getRectByColor(2);
+                }
+            });
 
-                    Utils.bitmapToMat(bmp, src);
+            mBtnGreen.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    getRectByColor(3);
+                }
+            });
 
-//                    Mat colored = new Mat(tmp.rows(), tmp.cols(), CvType.CV_8U, new Scalar(3));
-//                    Imgproc.cvtColor(tmp, colored , Imgproc.COLOR_RGB2HSV, 3);
-
-                    Mat hsvFrame = new Mat(src.rows(), src.cols(), CvType.CV_8U, new Scalar(3));
-                    Imgproc.cvtColor(src, hsvFrame, Imgproc.COLOR_RGB2HSV, 3);
-
-                    // Mask the image for skin colors
-                    Mat skinMask = new Mat(hsvFrame.rows(), hsvFrame.cols(), CvType.CV_8U, new Scalar(3));
-                    Core.inRange(hsvFrame, new Scalar(0, 10, 100), new Scalar(10, 255, 255), skinMask);
-
-//                    Core.inRange(colored, new Scalar(0, 0, 0), new Scalar(10, 255, 255), colored);
-
-                    final Size kernelSize = new Size(11, 11);
-                    final Point anchor = new Point(-1, -1);
-                    final int iterations = 2;
-
-                    Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, kernelSize);
-                    Imgproc.erode(skinMask, skinMask, kernel, anchor, iterations);
-                    Imgproc.dilate(skinMask, skinMask, kernel, anchor, iterations);
-
-                    // blur the mask to help remove noise, then apply the
-                    // mask to the frame
-                    final Size ksize = new Size(3, 3);
-
-                    Mat skin = new Mat(skinMask.rows(), skinMask.cols(), CvType.CV_8U, new Scalar(3));
-                    Imgproc.GaussianBlur(skinMask, skinMask, ksize, 0);
-//                    Core.bitwise_and(src, src, skin, skinMask);
-
-                    Imgproc.threshold(skinMask, skinMask, 13, 255, Imgproc.THRESH_OTSU | Imgproc.THRESH_BINARY);
-
-//                    Imgproc.cvtColor(colored, tmp, Imgproc.COLOR_RGB2RGBA);
-
-//                    Imgproc.cvtColor(tmp, tmp, Imgproc.COLOR_RGB2HSV);
-//                    Utils.matToBitmap(colored, bmp);
-
-
-//                    saveImage(bmp, "filtred");
-
-//                    Imgcodecs.imwrite(filePath, colored);
-//                    Imgproc.cvtColor(tmp, colored, Imgproc.COLOR_GRAY2BGRA);
-
-                    List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
-                    Mat hierarchy = new Mat();
-                    Imgproc.findContours(skinMask, contours, hierarchy, Imgproc.RETR_TREE,Imgproc.CHAIN_APPROX_SIMPLE);
-                    double maxVal = 0;
-                    int maxValIdx = 0;
-                    for (int contourIdx = 0; contourIdx < contours.size(); contourIdx++) {
-                        Log.d("tag", contours.get(contourIdx).toString());
-                        double contourArea = Imgproc.contourArea(contours.get(contourIdx));
-                        if (maxVal < contourArea)
-                        {
-                            maxVal = contourArea;
-                            maxValIdx = contourIdx;
-                        }
-                        Log.d("are", "c");
-                    }
-//
-//                    // Minimum size allowed for consideration
-                    MatOfPoint2f approxCurve = new MatOfPoint2f();
-                    MatOfPoint2f contour2f = new MatOfPoint2f( contours.get(maxValIdx).toArray() );
-//                    //Processing on mMOP2f1 which is in type MatOfPoint2f
-                    double approxDistance = Imgproc.arcLength(contour2f, true)*0.02;
-                    Imgproc.approxPolyDP(contour2f, approxCurve, approxDistance, true);
-//
-//                    //Convert back to MatOfPoint
-                    MatOfPoint points = new MatOfPoint( approxCurve.toArray() );
-//
-//                    // Get bounding rect of contour
-                    Rect rect = Imgproc.boundingRect(points);
-
-//                    Core.rectangle(mRgba, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height), new Scalar(255, 0, 0, 255), 3);
-
-                    Bitmap newbmp = Bitmap.createBitmap(skinMask.cols(), skinMask.rows(), Bitmap.Config.ARGB_8888);
-
-                    Utils.matToBitmap(skinMask, newbmp);
-//                    saveImage(bmp, "filtred");
-                    final Bitmap coloredBmp = newbmp;
-
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Glide.with(MainActivity.this).asBitmap().load(bitmapToByte(coloredBmp))
-                                    .into(mMainImage);
-                        }
-                    });
-
-
-//                    Mat circles = new Mat();
-//
-//                    MediaScannerConnection.scanFile(this, new String[] { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString() }, null, new MediaScannerConnection.OnScanCompletedListener() {
-//
-//                        public void onScanCompleted(String path, Uri uri)
-//                        {
-//                            Log.i("ExternalStorage", "Scanned " + path + ":");
-//                            Log.i("ExternalStorage", "-> uri=" + uri);
-//                        }
-//                    });
-//
-//                    List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
-//                    Imgproc.findContours(colored, contours, new Mat(),Imgproc.RETR_LIST,Imgproc.CHAIN_APPROX_SIMPLE);
-//
-//                    for(int i=0; i< contours.size();i++){
-//                        MatOfPoint2f temp = new MatOfPoint2f(contours.get(i).toArray());
-//                        RotatedRect elipse1 = Imgproc.fitEllipse(temp);
-//                    }
+            mBtnRed.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    getRectByColor(1);
                 }
             });
         }
     }
 
 
+    private Rect getRectByColor(int color) {
+        Scalar lowerBound = new Scalar(0, 100, 50);
+        Scalar higherBound = new Scalar(0, 255, 255);
 
+        switch(color) {
+
+            case 1:
+                lowerBound = new Scalar(100, 100, 0);
+                higherBound = new Scalar(255, 255, 255);
+                break;
+            case 2:
+                lowerBound = new Scalar(10, 100, 50);
+                higherBound = new Scalar(255, 205, 255);
+                break;
+            case 3:
+                lowerBound = new Scalar(10, 20, 50);
+                higherBound = new Scalar(255, 250, 255);
+                break;
+        }
+
+
+        Bitmap bmp = mCurrBitmap;
+        Mat src = new Mat ();
+
+        Utils.bitmapToMat(bmp, src);
+
+        Mat hsvFrame = new Mat(src.rows(), src.cols(), CvType.CV_8U, new Scalar(3));
+        Imgproc.cvtColor(src, hsvFrame, Imgproc.COLOR_RGB2HSV, 3);
+
+        // Mask the image for skin colors
+        Mat skinMask = new Mat(hsvFrame.rows(), hsvFrame.cols(), CvType.CV_8U, new Scalar(3));
+        Core.inRange(hsvFrame, lowerBound, higherBound, skinMask);
+
+
+        final Size kernelSize = new Size(11, 11);
+        final Point anchor = new Point(-1, -1);
+        final int iterations = 2;
+
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, kernelSize);
+        Imgproc.erode(skinMask, skinMask, kernel, anchor, iterations);
+        Imgproc.dilate(skinMask, skinMask, kernel, anchor, iterations);
+
+        final Size ksize = new Size(3, 3);
+
+        Mat skin = new Mat(skinMask.rows(), skinMask.cols(), CvType.CV_8U, new Scalar(3));
+        Imgproc.GaussianBlur(skinMask, skinMask, ksize, 0);
+//                    Core.bitwise_and(src, src, skin, skinMask);
+
+        Imgproc.threshold(skinMask, skinMask, 13, 255, Imgproc.THRESH_OTSU | Imgproc.THRESH_BINARY);
+
+        List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(skinMask, contours, hierarchy, Imgproc.RETR_TREE,Imgproc.CHAIN_APPROX_SIMPLE);
+        if (contours.size() < 1) {
+            Toast.makeText(getApplicationContext(), "not found", Toast.LENGTH_SHORT);
+            return new Rect();
+        }
+
+        double maxVal = 0;
+        int maxValIdx = 0;
+        for (int contourIdx = 0; contourIdx < contours.size(); contourIdx++) {
+            Log.d("tag", contours.get(contourIdx).toString());
+            double contourArea = Imgproc.contourArea(contours.get(contourIdx));
+            if (maxVal < contourArea)
+            {
+                maxVal = contourArea;
+                maxValIdx = contourIdx;
+            }
+            Log.d("are", "c");
+        }
+//
+//                    // Minimum size allowed for consideration
+        MatOfPoint2f approxCurve = new MatOfPoint2f();
+        MatOfPoint2f contour2f = new MatOfPoint2f( contours.get(maxValIdx).toArray() );
+//                    //Processing on mMOP2f1 which is in type MatOfPoint2f
+        double approxDistance = Imgproc.arcLength(contour2f, true)*0.02;
+        Imgproc.approxPolyDP(contour2f, approxCurve, approxDistance, true);
+//
+//                    //Convert back to MatOfPoint
+        MatOfPoint points = new MatOfPoint( approxCurve.toArray() );
+//
+//                    // Get bounding rect of contour
+        Rect rect = Imgproc.boundingRect(points);
+
+//                    Core.rectangle(mRgba, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height), new Scalar(255, 0, 0, 255), 3);
+
+        Bitmap newbmp = Bitmap.createBitmap(skinMask.cols(), skinMask.rows(), Bitmap.Config.ARGB_8888);
+
+        Utils.matToBitmap(skinMask, newbmp);
+//                    saveImage(bmp, "filtred");
+        final Bitmap coloredBmp = newbmp;
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Glide.with(MainActivity.this).asBitmap().load(bitmapToByte(coloredBmp))
+                        .into(mMainImage);
+            }
+        });
+
+        return rect;
+    }
 
 
     private void saveImage(Bitmap finalBitmap, String image_name) {
