@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.Image;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Environment;
@@ -15,7 +16,12 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.Toast;
+
+import com.bumptech.glide.Glide;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
@@ -33,6 +39,7 @@ import org.opencv.core.Scalar;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -46,6 +53,9 @@ public class MainActivity extends AppCompatActivity {
     private CameraBridgeViewBase mOpenCvCameraView;
     private Mat mat;
     private  static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL = 0;
+    private ImageView mMainImage;
+    private Button mBtnDetect;
+    private Bitmap mCurrBitmap;
 
     static {
         System.loadLibrary("opencv_java3");
@@ -61,6 +71,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mMainImage = (ImageView) findViewById(R.id.image_view);
+        mBtnDetect = (Button)findViewById(R.id.btn_detect);
 
         if (ContextCompat.checkSelfPermission(MainActivity.this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -84,80 +97,78 @@ public class MainActivity extends AppCompatActivity {
                 // result of the request.
             }
         } else {
+
             String root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString();
             File file = new File(root, "sang");
             Random generator = new Random();
             int n = 10000;
             n = generator.nextInt(n);
-            Bitmap bmp = getBitmapFromAsset(getApplicationContext(), "RGB-color.jpg");
-            Mat tmp = new Mat (bmp.getWidth(), bmp.getHeight(), CvType.CV_8UC1);
+            mCurrBitmap = getBitmapFromAsset(getApplicationContext(), "RGB-color.jpg");
 
-            Utils.bitmapToMat(bmp, tmp);
-            Imgproc.cvtColor(tmp, tmp, CvType.CV_8UC1);
-            String filePath = root + "/" + "test---" + n +  ".png";
+            Glide.with(this).asBitmap().load(bitmapToByte(mCurrBitmap))
+                    .into(mMainImage);
 
 
-//            boolean isWritten = Imgcodecs.imwrite(filePath,tmp);
+            mBtnDetect.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    Bitmap bmp = mCurrBitmap;
+                    Mat tmp = new Mat (bmp.getWidth(), bmp.getHeight(), Imgproc.COLOR_RGB2HSV);
+
+                    Utils.bitmapToMat(bmp, tmp);
+//                    Imgproc.cvtColor(tmp, tmp, CvType.CV_8UC1);
+
+//                    Bitmap bmpFinal = bmp.copy(Bitmap.Config.ARGB_8888, true);
+
+//                    saveImage(bmp, "filtred");
+
+                    Mat colored = new Mat(bmp.getWidth(), bmp.getHeight(), Imgproc.COLOR_RGB2HSV);
+//                    Mat colored = tmp;
+                    Imgproc.cvtColor(tmp, tmp, Imgproc.COLOR_RGB2HSV);
+//                    Utils.matToBitmap(colored, bmp);
 
 
-            Bitmap bmpFinal = bmp.copy(Bitmap.Config.ARGB_8888, true);
-//            mat = new Mat();
+//                    saveImage(bmp, "filtred");
 
-//            Utils.bitmapToMat(bmp, mat);
+                    Core.inRange(tmp, new Scalar(0, 0, 0), new Scalar(255, 0, 255), colored);
+//                    Imgcodecs.imwrite(filePath, colored);
 
-            saveImage(bmp, "filtred");
+                    Utils.matToBitmap(colored, bmp);
+//                    saveImage(bmp, "filtred");
+                    final Bitmap coloredBmp = bmp;
 
-//            Mat colored = new Mat();
-            Mat colored = new Mat (bmp.getWidth(), bmp.getHeight(), CvType.CV_8UC1);
-            colored = tmp;
-            Imgproc.cvtColor(colored, colored, CvType.CV_8UC1);
-            Utils.matToBitmap(colored, bmp);
-
-            saveImage(bmp, "filtred");
-
-
-            Core.inRange(tmp, new Scalar(0, 0, 0), new Scalar(255, 0, 255), colored);
-            Imgcodecs.imwrite(filePath, colored);
-
-//            Imgproc.cvtColor(colored, colored, CvType.CV_8UC1);
-            Utils.matToBitmap(colored, bmp);
-            saveImage(bmp, "filtred");
-
-//            saveImage(bmp, "filtred");
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Glide.with(MainActivity.this).asBitmap().load(bitmapToByte(coloredBmp))
+                                    .into(mMainImage);
+                        }
+                    });
 
 
-
-//            Utils.matToBitmap(colored, bmp);
-//            MediaStore.Images.Media.insertImage(getContentResolver(), bmp, "test" , "test");
-
-            Mat circles = new Mat();
-//        Imgproc.HoughCircles(mat, circles, Imgproc.CV_HOUGH_GRADIENT, 1, mat.rows()/8, 100, 20, 0, 0);
-//        Core.inRange(mat, new Scalar(0, 0, 230), new Scalar(0, 0, 255), mat);
-            MediaScannerConnection.scanFile(this, new String[] { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString() }, null, new MediaScannerConnection.OnScanCompletedListener() {
-
-                public void onScanCompleted(String path, Uri uri)
-                {
-                    Log.i("ExternalStorage", "Scanned " + path + ":");
-                    Log.i("ExternalStorage", "-> uri=" + uri);
+//                    Mat circles = new Mat();
+//
+//                    MediaScannerConnection.scanFile(this, new String[] { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString() }, null, new MediaScannerConnection.OnScanCompletedListener() {
+//
+//                        public void onScanCompleted(String path, Uri uri)
+//                        {
+//                            Log.i("ExternalStorage", "Scanned " + path + ":");
+//                            Log.i("ExternalStorage", "-> uri=" + uri);
+//                        }
+//                    });
+//
+//                    List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+//                    Imgproc.findContours(colored, contours, new Mat(),Imgproc.RETR_LIST,Imgproc.CHAIN_APPROX_SIMPLE);
+//
+//                    for(int i=0; i< contours.size();i++){
+//                        MatOfPoint2f temp = new MatOfPoint2f(contours.get(i).toArray());
+//                        RotatedRect elipse1 = Imgproc.fitEllipse(temp);
+//                    }
                 }
             });
-
-            List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
-            Imgproc.findContours(colored, contours, new Mat(),Imgproc.RETR_LIST,Imgproc.CHAIN_APPROX_SIMPLE);
-
-            for(int i=0; i< contours.size();i++){
-//Conversion between MatOfPoint to MatOfPoint2f
-                MatOfPoint2f temp = new MatOfPoint2f(contours.get(i).toArray());
-                RotatedRect elipse1 = Imgproc.fitEllipse(temp);
-            }
-
-
-// Permission has already been granted
         }
-
-
-
     }
+
+
 
 
 
@@ -213,6 +224,13 @@ public class MainActivity extends AppCompatActivity {
 //            e.printStackTrace();
 //        }
     }
+    private byte[] bitmapToByte(Bitmap bitmap){
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+        byte[] byteArray = stream.toByteArray();
+        return byteArray;
+    }
+
 
     public static Bitmap getBitmapFromAsset(Context context, String filePath) {
         AssetManager assetManager = context.getAssets();
