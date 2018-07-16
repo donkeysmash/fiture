@@ -145,8 +145,9 @@ public class MainActivity extends AppCompatActivity {
 
                     Mat skin = new Mat(skinMask.rows(), skinMask.cols(), CvType.CV_8U, new Scalar(3));
                     Imgproc.GaussianBlur(skinMask, skinMask, ksize, 0);
-                    Core.bitwise_and(src, src, skin, skinMask);
+//                    Core.bitwise_and(src, src, skin, skinMask);
 
+                    Imgproc.threshold(skinMask, skinMask, 13, 255, Imgproc.THRESH_OTSU | Imgproc.THRESH_BINARY);
 
 //                    Imgproc.cvtColor(colored, tmp, Imgproc.COLOR_RGB2RGBA);
 
@@ -159,34 +160,34 @@ public class MainActivity extends AppCompatActivity {
 //                    Imgcodecs.imwrite(filePath, colored);
 //                    Imgproc.cvtColor(tmp, colored, Imgproc.COLOR_GRAY2BGRA);
 
-//                    List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
-//                    Mat hierarchy = new Mat();
-//                    Imgproc.findContours(colored, contours, hierarchy, Imgproc.RETR_TREE,Imgproc.CHAIN_APPROX_SIMPLE);
-//                    double maxVal = 0;
-//                    int maxValIdx = 0;
-//                    for (int contourIdx = 0; contourIdx < contours.size(); contourIdx++) {
-//                        Log.d("tag", contours.get(contourIdx).toString());
-//                        double contourArea = Imgproc.contourArea(contours.get(contourIdx));
-//                        if (maxVal < contourArea)
-//                        {
-//                            maxVal = contourArea;
-//                            maxValIdx = contourIdx;
-//                        }
-//                        Log.d("are", "c");
-//                    }
+                    List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+                    Mat hierarchy = new Mat();
+                    Imgproc.findContours(skinMask, contours, hierarchy, Imgproc.RETR_TREE,Imgproc.CHAIN_APPROX_SIMPLE);
+                    double maxVal = 0;
+                    int maxValIdx = 0;
+                    for (int contourIdx = 0; contourIdx < contours.size(); contourIdx++) {
+                        Log.d("tag", contours.get(contourIdx).toString());
+                        double contourArea = Imgproc.contourArea(contours.get(contourIdx));
+                        if (maxVal < contourArea)
+                        {
+                            maxVal = contourArea;
+                            maxValIdx = contourIdx;
+                        }
+                        Log.d("are", "c");
+                    }
 //
 //                    // Minimum size allowed for consideration
-//                    MatOfPoint2f approxCurve = new MatOfPoint2f();
-//                    MatOfPoint2f contour2f = new MatOfPoint2f( contours.get(maxValIdx).toArray() );
+                    MatOfPoint2f approxCurve = new MatOfPoint2f();
+                    MatOfPoint2f contour2f = new MatOfPoint2f( contours.get(maxValIdx).toArray() );
 //                    //Processing on mMOP2f1 which is in type MatOfPoint2f
-//                    double approxDistance = Imgproc.arcLength(contour2f, true)*0.02;
-//                    Imgproc.approxPolyDP(contour2f, approxCurve, approxDistance, true);
+                    double approxDistance = Imgproc.arcLength(contour2f, true)*0.02;
+                    Imgproc.approxPolyDP(contour2f, approxCurve, approxDistance, true);
 //
 //                    //Convert back to MatOfPoint
-//                    MatOfPoint points = new MatOfPoint( approxCurve.toArray() );
+                    MatOfPoint points = new MatOfPoint( approxCurve.toArray() );
 //
 //                    // Get bounding rect of contour
-//                    Rect rect = Imgproc.boundingRect(points);
+                    Rect rect = Imgproc.boundingRect(points);
 
 //                    Core.rectangle(mRgba, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height), new Scalar(255, 0, 0, 255), 3);
 
