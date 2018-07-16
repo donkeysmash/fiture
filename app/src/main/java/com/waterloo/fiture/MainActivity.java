@@ -34,8 +34,11 @@ import org.opencv.core.Mat;
 import org.opencv.core.MatOfInt;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Point;
+import org.opencv.core.Rect;
 import org.opencv.core.RotatedRect;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
@@ -103,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
             Random generator = new Random();
             int n = 10000;
             n = generator.nextInt(n);
-            mCurrBitmap = getBitmapFromAsset(getApplicationContext(), "RGB-color.jpg");
+            mCurrBitmap = getBitmapFromAsset(getApplicationContext(), "oval.jpg");
 
             Glide.with(this).asBitmap().load(bitmapToByte(mCurrBitmap))
                     .into(mMainImage);
@@ -112,29 +115,86 @@ public class MainActivity extends AppCompatActivity {
             mBtnDetect.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     Bitmap bmp = mCurrBitmap;
-                    Mat tmp = new Mat (bmp.getWidth(), bmp.getHeight(), Imgproc.COLOR_RGB2HSV);
+                    Mat src = new Mat ();
 
-                    Utils.bitmapToMat(bmp, tmp);
-//                    Imgproc.cvtColor(tmp, tmp, CvType.CV_8UC1);
+                    Utils.bitmapToMat(bmp, src);
 
-//                    Bitmap bmpFinal = bmp.copy(Bitmap.Config.ARGB_8888, true);
+//                    Mat colored = new Mat(tmp.rows(), tmp.cols(), CvType.CV_8U, new Scalar(3));
+//                    Imgproc.cvtColor(tmp, colored , Imgproc.COLOR_RGB2HSV, 3);
 
-//                    saveImage(bmp, "filtred");
+                    Mat hsvFrame = new Mat(src.rows(), src.cols(), CvType.CV_8U, new Scalar(3));
+                    Imgproc.cvtColor(src, hsvFrame, Imgproc.COLOR_RGB2HSV, 3);
 
-                    Mat colored = new Mat(bmp.getWidth(), bmp.getHeight(), Imgproc.COLOR_RGB2HSV);
-//                    Mat colored = tmp;
-                    Imgproc.cvtColor(tmp, tmp, Imgproc.COLOR_RGB2HSV);
+                    // Mask the image for skin colors
+                    Mat skinMask = new Mat(hsvFrame.rows(), hsvFrame.cols(), CvType.CV_8U, new Scalar(3));
+                    Core.inRange(hsvFrame, new Scalar(0, 10, 100), new Scalar(10, 255, 255), skinMask);
+
+//                    Core.inRange(colored, new Scalar(0, 0, 0), new Scalar(10, 255, 255), colored);
+
+                    final Size kernelSize = new Size(11, 11);
+                    final Point anchor = new Point(-1, -1);
+                    final int iterations = 2;
+
+                    Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, kernelSize);
+                    Imgproc.erode(skinMask, skinMask, kernel, anchor, iterations);
+                    Imgproc.dilate(skinMask, skinMask, kernel, anchor, iterations);
+
+                    // blur the mask to help remove noise, then apply the
+                    // mask to the frame
+                    final Size ksize = new Size(3, 3);
+
+                    Mat skin = new Mat(skinMask.rows(), skinMask.cols(), CvType.CV_8U, new Scalar(3));
+                    Imgproc.GaussianBlur(skinMask, skinMask, ksize, 0);
+                    Core.bitwise_and(src, src, skin, skinMask);
+
+
+//                    Imgproc.cvtColor(colored, tmp, Imgproc.COLOR_RGB2RGBA);
+
+//                    Imgproc.cvtColor(tmp, tmp, Imgproc.COLOR_RGB2HSV);
 //                    Utils.matToBitmap(colored, bmp);
 
 
 //                    saveImage(bmp, "filtred");
 
-                    Core.inRange(tmp, new Scalar(0, 0, 0), new Scalar(255, 0, 255), colored);
 //                    Imgcodecs.imwrite(filePath, colored);
+//                    Imgproc.cvtColor(tmp, colored, Imgproc.COLOR_GRAY2BGRA);
 
-                    Utils.matToBitmap(colored, bmp);
+//                    List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+//                    Mat hierarchy = new Mat();
+//                    Imgproc.findContours(colored, contours, hierarchy, Imgproc.RETR_TREE,Imgproc.CHAIN_APPROX_SIMPLE);
+//                    double maxVal = 0;
+//                    int maxValIdx = 0;
+//                    for (int contourIdx = 0; contourIdx < contours.size(); contourIdx++) {
+//                        Log.d("tag", contours.get(contourIdx).toString());
+//                        double contourArea = Imgproc.contourArea(contours.get(contourIdx));
+//                        if (maxVal < contourArea)
+//                        {
+//                            maxVal = contourArea;
+//                            maxValIdx = contourIdx;
+//                        }
+//                        Log.d("are", "c");
+//                    }
+//
+//                    // Minimum size allowed for consideration
+//                    MatOfPoint2f approxCurve = new MatOfPoint2f();
+//                    MatOfPoint2f contour2f = new MatOfPoint2f( contours.get(maxValIdx).toArray() );
+//                    //Processing on mMOP2f1 which is in type MatOfPoint2f
+//                    double approxDistance = Imgproc.arcLength(contour2f, true)*0.02;
+//                    Imgproc.approxPolyDP(contour2f, approxCurve, approxDistance, true);
+//
+//                    //Convert back to MatOfPoint
+//                    MatOfPoint points = new MatOfPoint( approxCurve.toArray() );
+//
+//                    // Get bounding rect of contour
+//                    Rect rect = Imgproc.boundingRect(points);
+
+//                    Core.rectangle(mRgba, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height), new Scalar(255, 0, 0, 255), 3);
+
+                    Bitmap newbmp = Bitmap.createBitmap(skinMask.cols(), skinMask.rows(), Bitmap.Config.ARGB_8888);
+
+                    Utils.matToBitmap(skinMask, newbmp);
 //                    saveImage(bmp, "filtred");
-                    final Bitmap coloredBmp = bmp;
+                    final Bitmap coloredBmp = newbmp;
 
                     runOnUiThread(new Runnable() {
                         @Override
