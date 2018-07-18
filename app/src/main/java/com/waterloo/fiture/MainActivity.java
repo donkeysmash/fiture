@@ -19,6 +19,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
@@ -59,6 +60,8 @@ public class MainActivity extends AppCompatActivity {
     private ImageView mMainImage;
     private Button mBtnRed, mBtnBlue, mBtnGreen;
     private Bitmap mCurrBitmap;
+    private TextView mTextResult;
+    private Rect mReferenece;
 
     static {
         System.loadLibrary("opencv_java3");
@@ -75,11 +78,12 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mMainImage = (ImageView) findViewById(R.id.image_view);
-        mBtnBlue = (Button)findViewById(R.id.btn_blue);
-        mBtnRed = (Button)findViewById(R.id.btn_red);
-        mBtnGreen = (Button)findViewById(R.id.btn_green);
-
+        mMainImage = findViewById(R.id.image_view);
+        mBtnBlue = findViewById(R.id.btn_blue);
+        mBtnRed = findViewById(R.id.btn_red);
+        mBtnGreen = findViewById(R.id.btn_green);
+        mTextResult = findViewById(R.id.txt_result);
+        initReference();
         if (ContextCompat.checkSelfPermission(MainActivity.this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -107,53 +111,78 @@ public class MainActivity extends AppCompatActivity {
 //            File file = new File(root, "sang");
 //            Random generator = new Random();
 //            int n = 10000;
-//            n = generator.nextInt(n);
-            mCurrBitmap = getBitmapFromAsset(getApplicationContext(), "RGB-color.jpg");
+//            n = generator.nextInt(n)2
+            mCurrBitmap = getBitmapFromAsset(getApplicationContext(), "test1.jpeg");
 
             Glide.with(this).asBitmap().load(bitmapToByte(mCurrBitmap))
                     .into(mMainImage);
 
 
-            mBtnBlue.setOnClickListener(new View.OnClickListener() {
+
+
+            mBtnRed.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    getRectByColor(2);
+                    analyizeRect(getRectByColor(1));
                 }
             });
 
             mBtnGreen.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    getRectByColor(3);
+                    analyizeRect(getRectByColor(2));
                 }
             });
 
-            mBtnRed.setOnClickListener(new View.OnClickListener() {
+            mBtnBlue.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    getRectByColor(1);
+                    analyizeRect(getRectByColor(3));
                 }
             });
+
         }
+    }
+
+    private void initReference() {
+
+        int x = 10;
+        int y = 10;
+        int width = 50;
+        int height = 50;
+        mReferenece = new Rect(x, y, width, height);
+
+    }
+
+    private void analyizeRect(Rect rect) {
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("width diff :" + Math.abs(mReferenece.width - rect.width) + "\n");
+        sb.append("height diff :" + Math.abs(mReferenece.height - rect.height) + "\n");
+//        sb.append("height diff :" + Math.abs(mReferenece.height - rect.height) + "\n");
+
+
+        mTextResult.setText(sb.toString());
     }
 
 
     private Rect getRectByColor(int color) {
-        Scalar lowerBound = new Scalar(0, 100, 50);
-        Scalar higherBound = new Scalar(0, 255, 255);
+//        Scalar lowerBound = new Scalar(0, 100, 50);
+//        Scalar higherBound = new Scalar(0, 255, 255);
+//
+//        switch(color) {
+//
+//            case 1:
+//                lowerBound = new Scalar(0, 70, 50);
+//                higherBound = new Scalar(10, 255, 255);
+//                break;
+//            case 2:
+//                lowerBound = new Scalar(30, 70, 30);
+//                higherBound = new Scalar(120, 255, 255);
+//                break;
+//            case 3:
+//                lowerBound = new Scalar(100, 100, 10);
+//                higherBound = new Scalar(255, 255, 255);
+//                break;
+//        }
 
-        switch(color) {
-
-            case 1:
-                lowerBound = new Scalar(100, 100, 0);
-                higherBound = new Scalar(255, 255, 255);
-                break;
-            case 2:
-                lowerBound = new Scalar(10, 100, 50);
-                higherBound = new Scalar(255, 205, 255);
-                break;
-            case 3:
-                lowerBound = new Scalar(10, 20, 50);
-                higherBound = new Scalar(255, 250, 255);
-                break;
-        }
 
 
         Bitmap bmp = mCurrBitmap;
@@ -165,9 +194,24 @@ public class MainActivity extends AppCompatActivity {
         Imgproc.cvtColor(src, hsvFrame, Imgproc.COLOR_RGB2HSV, 3);
 
         // Mask the image for skin colors
-        Mat skinMask = new Mat(hsvFrame.rows(), hsvFrame.cols(), CvType.CV_8U, new Scalar(3));
-        Core.inRange(hsvFrame, lowerBound, higherBound, skinMask);
+        Mat skinMask = new Mat(hsvFrame.rows(), hsvFrame.cols(), CvType.CV_8U, new Scalar(3));;
+        if (color == 1) {
+            Mat skinMask1 = new Mat(hsvFrame.rows(), hsvFrame.cols(), CvType.CV_8U, new Scalar(3));
+            Mat skinMask2 = new Mat(hsvFrame.rows(), hsvFrame.cols(), CvType.CV_8U, new Scalar(3));
 
+            Core.inRange(hsvFrame, new Scalar(0, 70, 50), new Scalar(10, 255, 255), skinMask1);
+            Core.inRange(hsvFrame, new Scalar(170, 70, 50), new Scalar(180, 255, 255), skinMask2);
+            skinMask = new Mat(hsvFrame.rows(), hsvFrame.cols(), CvType.CV_8U, new Scalar(3));
+            Core.addWeighted(skinMask1, 1, skinMask2, 1, 1, skinMask);
+        } else {
+            Core.inRange(hsvFrame, new Scalar(30, 70, 30), new Scalar(120, 255, 255), skinMask);
+        }
+
+
+//        Core.inRange(hsvFrame, new Scalar(0, 90, 0), new Scalar(10, 255, 255), skinMask);
+//        Core.inRange(skinMask, new Scalar(160, 100, 100), new Scalar(179, 255, 255), skinMask);
+//        lowerBound = new Scalar(0, 70, 50);
+//        higherBound = new Scalar(10, 255, 255);
 
         final Size kernelSize = new Size(11, 11);
         final Point anchor = new Point(-1, -1);
