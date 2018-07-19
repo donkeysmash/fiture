@@ -2,6 +2,7 @@ package com.waterloo.fiture;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
@@ -13,6 +14,7 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -48,7 +50,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Random;
 
@@ -58,10 +62,11 @@ public class MainActivity extends AppCompatActivity {
     private Mat mat;
     private  static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL = 0;
     private ImageView mMainImage;
-    private Button mBtnRed, mBtnBlue, mBtnGreen;
+    private Button mBtnRed, mBtnBlue, mBtnGreen, mCamera;
     private Bitmap mCurrBitmap;
     private TextView mTextResult;
     private Rect mReferenece;
+    static final int REQUEST_TAKE_PHOTO = 1;
 
     static {
         System.loadLibrary("opencv_java3");
@@ -83,6 +88,8 @@ public class MainActivity extends AppCompatActivity {
         mBtnRed = findViewById(R.id.btn_red);
         mBtnGreen = findViewById(R.id.btn_green);
         mTextResult = findViewById(R.id.txt_result);
+        mCamera = findViewById(R.id.btn_camera);
+
         initReference();
         if (ContextCompat.checkSelfPermission(MainActivity.this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -112,10 +119,8 @@ public class MainActivity extends AppCompatActivity {
 //            Random generator = new Random();
 //            int n = 10000;
 //            n = generator.nextInt(n)2
-            mCurrBitmap = getBitmapFromAsset(getApplicationContext(), "test1.jpeg");
+//            mCurrBitmap = getBitmapFromAsset(getApplicationContext(), "test1.jpeg");
 
-            Glide.with(this).asBitmap().load(bitmapToByte(mCurrBitmap))
-                    .into(mMainImage);
 
 
 
@@ -138,8 +143,89 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
+            mCamera.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    dispatchTakePictureIntent();
+                }
+            });
+
         }
     }
+
+    private void dispatchTakePictureIntent() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        // Ensure that there's a camera activity to handle the intent
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            // Create the File where the photo should go
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                // Error occurred while creating the File
+            }
+            // Continue only if the File was successfully created
+
+            Uri photoURI = FileProvider.getUriForFile(this, "com.waterloo.fiture.fileprovider", photoFile);
+
+//            Uri photoURI = Uri.fromFile(photoFile);
+            takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+            startActivityForResult(takePictureIntent, REQUEST_TAKE_PHOTO);
+
+        }
+    }
+
+
+    String mCurrentPhotoPath;
+
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+
+        File directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
+//        File mypath = directory + imageFileName;
+
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                directory      /* directory */
+        );
+
+        // Save a file: path for use with ACTION_VIEW intents
+        mCurrentPhotoPath = image.getAbsolutePath();
+        return image;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_TAKE_PHOTO && resultCode == RESULT_OK) {
+//            Bundle extras = data.getExtras();
+//            Bitmap imageBitmap = (Bitmap) extras.get("data");
+
+
+            mCurrBitmap = loadBitmap(Uri.fromFile(new File(mCurrentPhotoPath)));
+            Glide.with(this).asBitmap().load(mCurrentPhotoPath)
+                    .into(mMainImage);
+
+        }
+    }
+
+    public Bitmap loadBitmap(Uri url)
+    {
+        Bitmap bitmap = null;
+
+        try {
+            bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), url);
+            return bitmap;
+        } catch (Exception e) {
+            e.fillInStackTrace();
+        }
+
+        return bitmap;
+    }
+
 
     private void initReference() {
 
