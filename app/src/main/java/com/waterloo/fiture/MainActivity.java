@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.media.Image;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
@@ -62,10 +63,12 @@ public class MainActivity extends AppCompatActivity {
     private Mat mat;
     private  static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL = 0;
     private ImageView mMainImage;
-    private Button mBtnRed, mBtnBlue, mBtnGreen, mCamera;
+    private Button mBtnRed, mBtnBlue, mBtnGreen, mCamera, mOriginal;
     private Bitmap mCurrBitmap;
     private TextView mTextResult;
-    private Rect mReferenece;
+    private Rect mReferenece, mTarget;
+    private String mCurrentPhotoPath;
+
     static final int REQUEST_TAKE_PHOTO = 1;
 
     static {
@@ -89,8 +92,9 @@ public class MainActivity extends AppCompatActivity {
         mBtnGreen = findViewById(R.id.btn_green);
         mTextResult = findViewById(R.id.txt_result);
         mCamera = findViewById(R.id.btn_camera);
+        mOriginal = findViewById(R.id.btn_original);
 
-        initReference();
+//        initReference();
         if (ContextCompat.checkSelfPermission(MainActivity.this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -123,23 +127,35 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-
+            mOriginal.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if (mCurrentPhotoPath != null) {
+                        Glide.with(getApplicationContext()).asBitmap().load(mCurrentPhotoPath)
+                                .into(mMainImage);
+                    }
+                }
+            });
 
             mBtnRed.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    analyizeRect(getRectByColor(1));
+                    mReferenece = getRectByColor(1);
+                    showRect(mReferenece);
+//                    analyizeRect(getRectByColor(1));
                 }
             });
 
             mBtnGreen.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    analyizeRect(getRectByColor(2));
+                    mTarget = getRectByColor(2);
+                    showRect(mTarget);
+//                    analyizeRect(mTarget);
                 }
             });
 
             mBtnBlue.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    analyizeRect(getRectByColor(3));
+                    analyizeRect();
                 }
             });
 
@@ -176,7 +192,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    String mCurrentPhotoPath;
 
     private File createImageFile() throws IOException {
         // Create an image file name
@@ -206,7 +221,15 @@ public class MainActivity extends AppCompatActivity {
 
 
             mCurrBitmap = loadBitmap(Uri.fromFile(new File(mCurrentPhotoPath)));
-            Glide.with(this).asBitmap().load(mCurrentPhotoPath)
+
+            float rotateRotationAngle = 90f;
+            Matrix matrix = new Matrix();
+            matrix.postRotate(rotateRotationAngle);
+
+            mCurrBitmap = Bitmap.createBitmap(mCurrBitmap, 0, 0, mCurrBitmap.getWidth(), mCurrBitmap.getHeight(), matrix, true);
+
+
+            Glide.with(this).asBitmap().load(mCurrBitmap)
                     .into(mMainImage);
 
         }
@@ -237,11 +260,27 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void analyizeRect(Rect rect) {
+    private void showRect(Rect rect) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Pixel width :" + rect.width + " height: "  + rect.height +"\n");
+        mTextResult.setText(sb.toString());
+    }
+
+    private void analyizeRect() {
+
+
+        int referenceWidth = 500;
+        float x = mReferenece.width / referenceWidth;
+        float targetReal = (float)mTarget.width / x;
+        float result = targetReal / (float)1.58;
 
         StringBuilder sb = new StringBuilder();
-        sb.append("width diff :" + Math.abs(mReferenece.width - rect.width) + "\n");
-        sb.append("height diff :" + Math.abs(mReferenece.height - rect.height) + "\n");
+//        sb.append("Pixel width diff :" + Math.abs(mReferenece.width - mTarget.width) + "\n");
+//        sb.append("Pixel height diff :" + Math.abs(mReferenece.height - mTarget.height) + "\n");
+//        sb.append("Pixel width:" + mTarget.width + " height: "  + mTarget.height+  "\n");
+        sb.append("Estimated result:" + result + " mm: \n");
+
+//        sb.append("height diff :" + Math.abs(mReferenece.height - rect.height) + "\n");
 //        sb.append("height diff :" + Math.abs(mReferenece.height - rect.height) + "\n");
 
 
@@ -269,6 +308,14 @@ public class MainActivity extends AppCompatActivity {
 //                break;
 //        }
 
+
+        mCurrBitmap = loadBitmap(Uri.fromFile(new File(mCurrentPhotoPath)));
+
+        float rotateRotationAngle = 90f;
+        Matrix matrix = new Matrix();
+        matrix.postRotate(rotateRotationAngle);
+
+        mCurrBitmap = Bitmap.createBitmap(mCurrBitmap, 0, 0, mCurrBitmap.getWidth(), mCurrBitmap.getHeight(), matrix, true);
 
 
         Bitmap bmp = mCurrBitmap;
@@ -360,6 +407,7 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+
                 Glide.with(MainActivity.this).asBitmap().load(bitmapToByte(coloredBmp))
                         .into(mMainImage);
             }
